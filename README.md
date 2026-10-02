@@ -2,7 +2,7 @@
 
 A cinematic, text-interactive Sherlock Holmes web app — run Ollama locally, then double-click to chat.
 
-![Sherlock Holmes in the Baker Street sitting room](assets/Pasted%202026-09-30%20at%206.34.22%20PM.png)
+![Sherlock Holmes playing the violin](assets/holmes-violin-figure.webp)
 
 ## Features
 
@@ -64,4 +64,3 @@ baker-street/
 ## Security
 
 The repository contains no API key, token, password, or other secret. The current local-Ollama version needs no cloud credential. Browser `localStorage` is used only for the mute preference and the cartoon/photo preference, and those values remain on the visitor's own device.
-
