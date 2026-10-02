@@ -2,7 +2,7 @@
 
 A cinematic, text-interactive Sherlock Holmes web app — run Ollama locally, then double-click to chat.
 
-![Sherlock Holmes playing the violin](assets/holmes-violin-figure.webp)
+![Sherlock Holmes at 221B Baker Street](assets/hero.webp)
 
 ## Features
 
