@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>221B Baker Street</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --brass: #b89655;
+      --paper: #eadfc8;
+      --ink: rgba(11, 18, 15, 0.82);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { width: 100%; height: 100%; margin: 0; }
+
+    body {
+      overflow: hidden;
+      color: var(--paper);
+      font-family: Georgia, "Times New Roman", serif;
+      background: #111;
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background: #111;
+      animation: scene-arrive 3s ease both;
+    }
+
+    #panorama-world {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 220vw;
+      height: 100vh;
+      transform: translate3d(-64.4vw, 0, 0);
+      transition: transform 3.5s ease-in-out;
+      will-change: transform;
+    }
+
+    #panorama-background {
+      position: absolute;
+      inset: 0;
+      background: url("assets/room-panorama.webp") center / cover no-repeat;
+    }
+
+    #holmes-figure {
+      position: absolute;
+      left: 52%;
+      bottom: 3.5vh;
+      width: 27.5vh;
+      height: 55vh;
+      transform: translateX(-50%);
+      transition: left 3.5s ease-in-out;
+      will-change: left;
+    }
+
+    #holmes-bob {
+      position: absolute;
+      inset: 0;
+      animation: figure-breathe 6s ease-in-out infinite;
+      will-change: transform;
+    }
+
+    #holmes-figure.walking #holmes-bob { animation: walk-step 0.72s ease-in-out infinite; }
+
+    #holmes-standing,
+    #holmes-violin-figure,
+    #holmes-cartoon {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: auto;
+      height: 100%;
+      transform: translateX(-50%);
+      object-fit: contain;
+      transition: opacity 1s ease;
+      pointer-events: none;
+      will-change: opacity;
+    }
+
+    #holmes-standing { opacity: 1; }
+    #holmes-violin-figure { opacity: 0; }
+    #holmes-figure.violin-pose #holmes-standing { opacity: 0; }
+    #holmes-figure.violin-pose #holmes-violin-figure { opacity: 1; }
+
+    #holmes-cartoon {
+      opacity: 0;
+      overflow: visible;
+      transition: opacity 0.8s ease;
+    }
+
+    #holmes-figure.cartoon-mode #holmes-standing,
+    #holmes-figure.cartoon-mode #holmes-violin-figure { opacity: 0; }
+    #holmes-figure.cartoon-mode #holmes-cartoon { opacity: 1; }
+
+    #holmes-cartoon #body,
+    #holmes-cartoon #cape { animation: cartoon-breathe 4s ease-in-out infinite; transform-origin: 150px 420px; }
+    #holmes-cartoon #head { transform-origin: 150px 150px; transition: transform .8s ease; }
+    #holmes-cartoon #arm-right { transform-origin: 205px 320px; transition: transform .8s ease; }
+    #holmes-cartoon #eyes { transform-origin: center; }
+    #holmes-cartoon #eye-pupils { transition: transform .5s ease; }
+    #holmes-cartoon #mouth-half,
+    #holmes-cartoon #mouth-open { opacity: 0; }
+    #holmes-figure.mouth-half #mouth-closed { opacity: 0; }
+    #holmes-figure.mouth-half #mouth-half { opacity: 1; }
+    #holmes-figure.mouth-open #mouth-closed { opacity: 0; }
+    #holmes-figure.mouth-open #mouth-open { opacity: 1; }
+    #holmes-figure.blinking #eyes { transform: scaleY(.08); }
+    #holmes-figure.head-tilt #head { transform: rotate(-5deg); }
+
+    #holmes-figure.thinking #head { transform: rotate(8deg); }
+    #holmes-figure.thinking #arm-right { transform: translate(-28px, -65px) rotate(-28deg); }
+    #holmes-figure.thinking #eye-pupils { transform: translate(4px, -4px); }
+    #thought-bubble { opacity: 0; transition: opacity .4s ease; }
+    #holmes-figure.thinking #thought-bubble { opacity: 1; }
+
+    #cartoon-violin { opacity: 0; transition: opacity .8s ease; }
+    #cartoon-bow { transform-origin: center; transform-box: fill-box; transition: transform .6s ease-in-out; }
+    #holmes-figure.cartoon-mode.violin-pose #cartoon-violin { opacity: 1; }
+    #holmes-figure.cartoon-mode.violin-pose #pipe { opacity: 0; }
+    #holmes-figure.cartoon-mode.violin-pose #arm-left { transform: translate(23px, -42px) rotate(20deg); }
+    #holmes-figure.cartoon-mode.violin-pose #arm-right { transform: translate(-18px, -48px) rotate(-12deg); }
+
+    @keyframes cartoon-breathe {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-2px); }
+    }
+
+    @keyframes walk-step {
+      0%, 100% { transform: translate3d(0, 0, 0); }
+      50% { transform: translate3d(0, -4px, 0); }
+    }
+
+    @keyframes figure-breathe {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(0, -2px, 0) scale(1.006); }
+    }
+
+    #presence-arrival {
+      position: fixed;
+      left: 2vw;
+      bottom: 0;
+      z-index: 1;
+      width: 26vw;
+      max-width: 430px;
+      pointer-events: none;
+      animation: presence-arrive 3s ease 1s both;
+    }
+
+    #user-presence {
+      display: block;
+      width: 100%;
+      height: auto;
+      opacity: 0.42;
+      filter: blur(1px);
+      mix-blend-mode: screen;
+      transform-origin: 50% 100%;
+      transition: opacity 2s ease;
+      animation: presence-breathe 6s ease-in-out infinite;
+      will-change: transform, opacity;
+    }
+
+    #user-presence.user-typing { opacity: 0.55; }
+    #user-presence.holmes-speaking { opacity: 0.32; }
+
+    @keyframes presence-arrive {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes presence-breathe {
+      0%, 100% { transform: translate3d(0, 0, 0); }
+      50% { transform: translate3d(0, -3px, 0); }
+    }
+
+    @keyframes scene-arrive {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        linear-gradient(to bottom, rgba(4, 7, 6, 0.08), rgba(4, 7, 6, 0.18) 55%, rgba(4, 7, 6, 0.7)),
+        radial-gradient(circle at 50% 46%, transparent 15%, rgba(0, 0, 0, 0.2) 100%);
+    }
+
+    #conversation {
+      position: fixed;
+      left: 50%;
+      bottom: 6vh;
+      z-index: 2;
+      width: min(40vw, 720px);
+      min-width: 420px;
+      transform: translateX(-50%);
+    }
+
+    #plaque {
+      min-height: 92px;
+      max-height: 34vh;
+      margin-bottom: 13px;
+      padding: 18px 22px;
+      overflow-y: auto;
+      border: 1px solid rgba(184, 150, 85, 0.72);
+      background: var(--ink);
+      box-shadow: 0 15px 45px rgba(0, 0, 0, 0.36), inset 0 0 28px rgba(184, 150, 85, 0.05);
+      backdrop-filter: blur(7px);
+      -webkit-backdrop-filter: blur(7px);
+      font-size: clamp(17px, 1.35vw, 22px);
+      font-style: italic;
+      line-height: 1.55;
+      letter-spacing: 0.015em;
+      text-shadow: 0 1px 1px #000;
+    }
+
+    #reply:empty::before {
+      content: "The fire is low, and Baker Street is listening.";
+      color: rgba(234, 223, 200, 0.52);
+    }
+
+    #reply.typing::after {
+      content: "\2767";
+      display: inline-block;
+      margin-left: 5px;
+      color: #d2b273;
+      font-style: normal;
+      animation: cursor-pulse 0.72s steps(2, end) infinite;
+    }
+
+    @keyframes cursor-pulse { 50% { opacity: 0.2; } }
+
+    #chat-form { display: flex; gap: 8px; }
+
+    #message {
+      display: block;
+      flex: 1;
+      min-width: 0;
+      height: 46px;
+      border: 1px solid rgba(184, 150, 85, 0.67);
+      border-radius: 0;
+      outline: none;
+      padding: 0 16px;
+      color: #f3ead8;
+      caret-color: #d7b66e;
+      background: rgba(10, 17, 14, 0.62);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.27);
+      font: 16px Georgia, "Times New Roman", serif;
+      opacity: 0.73;
+      transition: opacity 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    #message::placeholder { color: rgba(234, 223, 200, 0.62); }
+
+    #message:focus {
+      opacity: 1;
+      border-color: var(--brass);
+      background: rgba(10, 17, 14, 0.88);
+    }
+
+    #message:disabled { cursor: wait; }
+
+    #mute-toggle {
+      flex: 0 0 auto;
+      width: 58px;
+      border: 1px solid rgba(184, 150, 85, 0.67);
+      border-radius: 0;
+      color: rgba(234, 223, 200, 0.72);
+      background: rgba(10, 17, 14, 0.68);
+      font: 11px Georgia, "Times New Roman", serif;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+    }
+
+    #mute-toggle:hover,
+    #mute-toggle:focus-visible { color: var(--paper); border-color: var(--brass); }
+
+    #style-toggle {
+      flex: 0 0 auto;
+      width: 58px;
+      border: 1px solid rgba(184, 150, 85, 0.67);
+      border-radius: 0;
+      color: rgba(234, 223, 200, 0.72);
+      background: rgba(10, 17, 14, 0.68);
+      font: 11px Georgia, "Times New Roman", serif;
+      cursor: pointer;
+    }
+
+    #style-toggle:hover,
+    #style-toggle:focus-visible { color: var(--paper); border-color: var(--brass); }
+
+    @media (max-width: 760px) {
+      #presence-arrival { left: -3vw; width: 40vw; max-width: none; }
+      #conversation { width: calc(100vw - 30px); min-width: 0; bottom: 4vh; }
+      #plaque { max-height: 40vh; padding: 15px 17px; font-size: 17px; }
+      #message { height: 48px; font-size: 16px; }
+      #mute-toggle, #style-toggle { width: 50px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="viewport" aria-hidden="true">
+    <div id="panorama-world">
+      <div id="panorama-background"></div>
+      <div id="holmes-figure">
+        <div id="holmes-bob">
+          <img id="holmes-standing" src="assets/holmes-standing.webp" alt="">
+          <img id="holmes-violin-figure" src="assets/holmes-violin-figure.webp" alt="">
+          <svg id="holmes-cartoon" viewBox="0 0 300 600" role="img" aria-label="卡通福尔摩斯">
+            <defs>
+              <linearGradient id="cape-shade" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#202631"/><stop offset="1" stop-color="#080b10"/></linearGradient>
+              <linearGradient id="vest-shade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#59606a"/><stop offset="1" stop-color="#282d35"/></linearGradient>
+            </defs>
+            <g id="cape">
+              <path d="M64 278 Q150 235 236 278 L270 550 Q216 582 150 570 Q84 582 30 550Z" fill="url(#cape-shade)" stroke="#424954" stroke-width="4"/>
+              <path d="M58 290 Q34 346 28 455 L74 448 103 307Z" fill="#11161e" stroke="#3c424b" stroke-width="3"/>
+              <path d="M242 290 Q266 346 272 455 L226 448 197 307Z" fill="#11161e" stroke="#3c424b" stroke-width="3"/>
+            </g>
+            <g id="body">
+              <path d="M98 268 L202 268 220 505 80 505Z" fill="url(#vest-shade)" stroke="#171b21" stroke-width="4"/>
+              <path d="M112 270 L150 330 188 270 179 460 121 460Z" fill="#f2eee5"/>
+              <path d="M145 284 L155 284 166 405 150 424 134 405Z" fill="#17191d"/>
+              <g stroke="#858b94" opacity=".5"><path d="M105 300V480"/><path d="M125 318V485"/><path d="M175 318V485"/><path d="M195 300V480"/></g>
+              <path d="M113 368 Q150 388 187 368" fill="none" stroke="#c79b43" stroke-width="4"/>
+              <circle cx="113" cy="368" r="5" fill="#e4bd64"/><circle cx="188" cy="368" r="5" fill="#e4bd64"/>
+              <path d="M102 502 L139 502 135 590 84 590Z" fill="#171b22"/><path d="M161 502 L198 502 216 590 165 590Z" fill="#171b22"/>
+            </g>
+            <g id="arm-left" style="transform-origin:95px 320px;transition:transform .8s ease">
+              <path d="M92 306 Q65 360 68 450" fill="none" stroke="#202631" stroke-width="31" stroke-linecap="round"/>
+              <ellipse cx="69" cy="452" rx="14" ry="18" fill="#dfb393"/>
+            </g>
+            <g id="arm-right">
+              <path d="M208 306 Q238 354 230 438" fill="none" stroke="#202631" stroke-width="31" stroke-linecap="round"/>
+              <ellipse cx="229" cy="442" rx="14" ry="18" fill="#dfb393"/>
+            </g>
+            <g id="head">
+              <path d="M103 84 Q115 43 151 45 Q201 45 207 91 L195 103 104 104Z" fill="#19191b"/>
+              <path d="M105 79 Q119 35 151 48 Q169 25 185 55 Q207 46 204 83 Q214 91 199 105 L104 105 Q89 91 105 79Z" fill="#272529"/>
+              <path d="M104 103 Q104 64 150 62 Q196 64 196 106 L188 184 Q171 211 150 215 Q129 211 112 184Z" fill="#e1b596" stroke="#7d5440" stroke-width="3"/>
+              <path d="M105 109 Q91 108 96 139 Q101 153 111 151M195 109 Q209 108 204 139 Q199 153 189 151" fill="#d9a988"/>
+              <g id="eyes">
+                <path d="M116 122 Q129 111 141 122 Q129 135 116 122M159 122 Q171 111 184 122 Q171 135 159 122" fill="#f0eee9" stroke="#392d29" stroke-width="3"/>
+                <g id="eye-pupils"><circle cx="130" cy="122" r="5" fill="#31464b"/><circle cx="171" cy="122" r="5" fill="#31464b"/></g>
+                <path d="M113 110 Q128 98 143 108M157 108 Q173 98 188 110" fill="none" stroke="#272124" stroke-width="7" stroke-linecap="round"/>
+              </g>
+              <path d="M150 123 L141 153 154 157" fill="none" stroke="#9c6b54" stroke-width="3"/>
+              <g id="mouth">
+                <path id="mouth-closed" d="M132 177 Q150 184 169 176" fill="none" stroke="#713d3a" stroke-width="4" stroke-linecap="round"/>
+                <path id="mouth-half" d="M134 176 Q150 169 167 176 Q150 189 134 176Z" fill="#6f3334"/>
+                <ellipse id="mouth-open" cx="150" cy="178" rx="15" ry="12" fill="#55262a"/>
+              </g>
+            </g>
+            <g id="pipe">
+              <path d="M169 180 Q201 190 226 171" fill="none" stroke="#5a321f" stroke-width="8" stroke-linecap="round"/>
+              <path d="M219 151 Q246 146 247 168 Q245 191 222 177Z" fill="#6e3d25" stroke="#28170e" stroke-width="4"/>
+              <path d="M235 147 Q239 130 229 120" fill="none" stroke="rgba(225,225,215,.45)" stroke-width="5" stroke-linecap="round"/>
+            </g>
+            <g id="thought-bubble" fill="#f4ead2" stroke="#806a44" stroke-width="2">
+              <circle cx="222" cy="95" r="8"/><circle cx="241" cy="73" r="12"/><path d="M253 31H289Q298 31 298 40V67Q298 76 289 76H253Q244 76 244 67V40Q244 31 253 31Z"/>
+              <text x="271" y="60" text-anchor="middle" font-family="Georgia,serif" font-size="25" fill="#4d422f" stroke="none">…</text>
+            </g>
+            <g id="cartoon-violin">
+              <g transform="translate(92 292) rotate(-24)"><ellipse cx="62" cy="38" rx="28" ry="36" fill="#a85827" stroke="#4c2517" stroke-width="4"/><ellipse cx="62" cy="78" rx="30" ry="38" fill="#a85827" stroke="#4c2517" stroke-width="4"/><rect x="57" y="-36" width="10" height="88" rx="4" fill="#6b351c"/><line x1="60" y1="-32" x2="60" y2="105" stroke="#f0d59b"/><line x1="64" y1="-32" x2="64" y2="105" stroke="#f0d59b"/></g>
+              <g id="cartoon-bow"><g transform="translate(72 348) rotate(-14)"><rect x="0" y="0" width="166" height="5" rx="2" fill="#9a633c"/><line x1="3" y1="8" x2="164" y2="8" stroke="#ead9b5" stroke-width="2"/></g></g>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="presence-arrival" aria-hidden="true"><img id="user-presence" src="assets/user-presence.webp" alt=""></div>
+
+  <main id="conversation" aria-live="polite">
+    <section id="plaque" aria-label="Holmes 的回复"><span id="reply"></span></section>
+    <form id="chat-form" autocomplete="off">
+      <input id="message" type="text" placeholder="What brings you to Baker Street?" aria-label="给 Holmes 的消息" autofocus>
+      <button id="mute-toggle" type="button" aria-pressed="false" title="静音或恢复 Holmes 的声音">sound</button>
+      <button id="style-toggle" type="button" aria-pressed="true" title="切换卡通或照片形象">照片</button>
+    </form>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var API_URL = "http://127.0.0.1:11434/api/chat";
+      var MODEL = "llama3.1:8b";
+      var EDGE_TTS_URL = "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1";
+      var EDGE_VOICE = "en-GB-RyanNeural"; // 想换声音就改这一行。
+      var MUTE_KEY = "holmes_tts_muted";
+      var STYLE_KEY = "holmes_visual_style";
+      var SYSTEM = "You are Sherlock Holmes, the consulting detective of 221B Baker Street, London, 1895. Speak in first person, in Victorian English — refined, observant, with dry wit. Think the way Holmes thinks: observe, then deduce, then conclude. Keep replies conversational and short (2-4 sentences), plain text only — no lists, no bold, no markdown, no emojis. Never break character. Answer from the Arthur Conan Doyle canon you know; if you are unsure of a detail, say so in character rather than inventing it. Address the user as \"my dear fellow\".";
+
+      var form = document.getElementById("chat-form");
+      var message = document.getElementById("message");
+      var reply = document.getElementById("reply");
+      var plaque = document.getElementById("plaque");
+      var muteToggle = document.getElementById("mute-toggle");
+      var styleToggle = document.getElementById("style-toggle");
+      var panoramaWorld = document.getElementById("panorama-world");
+      var holmesFigure = document.getElementById("holmes-figure");
+      var cartoonBow = document.getElementById("cartoon-bow");
+      var userPresence = document.getElementById("user-presence");
+      var typingTimer = 0;
+      var currentAudio = null;
+      var currentAudioUrl = "";
+      var speechRun = 0;
+      var audioContext = null;
+      var playingViolin = false;
+      var violinTimer = 0;
+      var walkingTimer = 0;
+      var pacingTimer = 0;
+      var blinkTimer = 0;
+      var tiltTimer = 0;
+      var mouthFrame = 0;
+      var mouthData = null;
+      var holmesState = "idle";
+      var currentZone = "fireplace";
+      var pendingDuringViolin = [];
+      var muted = localStorage.getItem(MUTE_KEY) === "1";
+      var cartoonMode = localStorage.getItem(STYLE_KEY) !== "photo";
+      var ZONES = {
+        desk: { left: "18%", camera: "0vw" },
+        fireplace: { left: "52%", camera: "-64.4vw" },
+        window: { left: "82%", camera: "-120vw" }
+      };
+
+      function updateMuteButton() {
+        muteToggle.textContent = muted ? "muted" : "sound";
+        muteToggle.setAttribute("aria-pressed", muted ? "true" : "false");
+      }
+
+      function updateStyleButton() {
+        holmesFigure.classList.toggle("cartoon-mode", cartoonMode);
+        styleToggle.textContent = cartoonMode ? "照片" : "卡通";
+        styleToggle.setAttribute("aria-pressed", cartoonMode ? "true" : "false");
+      }
+
+      function setMouth(frame) {
+        holmesFigure.classList.toggle("mouth-half", frame === 1);
+        holmesFigure.classList.toggle("mouth-open", frame === 2);
+      }
+
+      function setHolmesState(state) {
+        holmesState = state;
+        holmesFigure.classList.toggle("thinking", state === "thinking");
+        if (state !== "speaking") setMouth(0);
+      }
+
+      function scheduleBlink() {
+        window.clearTimeout(blinkTimer);
+        blinkTimer = window.setTimeout(function () {
+          if (holmesState !== "violin") {
+            holmesFigure.classList.add("blinking");
+            window.setTimeout(function () { holmesFigure.classList.remove("blinking"); }, 150);
+          }
+          scheduleBlink();
+        }, 3000 + Math.random() * 3000);
+      }
+
+      function scheduleHeadTilt() {
+        window.clearTimeout(tiltTimer);
+        tiltTimer = window.setTimeout(function () {
+          if (holmesState === "idle") {
+            holmesFigure.classList.add("head-tilt");
+            window.setTimeout(function () { holmesFigure.classList.remove("head-tilt"); }, 1400);
+          }
+          scheduleHeadTilt();
+        }, 10000 + Math.random() * 4000);
+      }
+
+      function stopMouthAnimation() {
+        if (mouthFrame) cancelAnimationFrame(mouthFrame);
+        mouthFrame = 0;
+        mouthData = null;
+        setMouth(0);
+      }
+
+      function animateMouth(analyser) {
+        stopMouthAnimation();
+        mouthData = analyser ? new Uint8Array(analyser.fftSize) : null;
+        function tick(now) {
+          if (holmesState !== "speaking") return stopMouthAnimation();
+          var level;
+          if (analyser) {
+            analyser.getByteTimeDomainData(mouthData);
+            var sum = 0;
+            for (var i = 0; i < mouthData.length; i++) {
+              var sample = (mouthData[i] - 128) / 128;
+              sum += sample * sample;
+            }
+            level = Math.sqrt(sum / mouthData.length);
+          } else {
+            level = 0.035 + 0.06 * Math.abs(Math.sin(now / 115));
+          }
+          setMouth(level > 0.075 ? 2 : level > 0.025 ? 1 : 0);
+          mouthFrame = requestAnimationFrame(tick);
+        }
+        mouthFrame = requestAnimationFrame(tick);
+      }
+
+      function moveHolmes(zoneName) {
+        var zone = ZONES[zoneName];
+        if (!zone) return;
+        window.clearTimeout(walkingTimer);
+        currentZone = zoneName;
+        holmesFigure.classList.add("walking");
+        holmesFigure.style.left = zone.left;
+        panoramaWorld.style.transform = "translate3d(" + zone.camera + ",0,0)";
+        walkingTimer = window.setTimeout(function () {
+          holmesFigure.classList.remove("walking");
+        }, 3500);
+      }
+
+      function schedulePacing() {
+        window.clearTimeout(pacingTimer);
+        if (playingViolin) return;
+        pacingTimer = window.setTimeout(function () {
+          if (playingViolin || message.disabled || message.value.trim()) {
+            schedulePacing();
+            return;
+          }
+          var choices = Object.keys(ZONES).filter(function (name) { return name !== currentZone; });
+          moveHolmes(choices[Math.floor(Math.random() * choices.length)]);
+          schedulePacing();
+        }, 60000 + Math.random() * 30000);
+      }
+
+      function stopSpeech() {
+        speechRun += 1;
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio = null;
+        }
+        if (currentAudioUrl) {
+          URL.revokeObjectURL(currentAudioUrl);
+          currentAudioUrl = "";
+        }
+        if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+        stopVoiceMotion();
+      }
+
+      function ensureAudioContext() {
+        var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        if (!audioContext) audioContext = new AudioContextClass();
+        if (audioContext.state === "suspended") audioContext.resume().catch(function () {});
+        return audioContext;
+      }
+
+      function startVoiceMotion(analyser) {
+        stopVoiceMotion();
+        setHolmesState("speaking");
+        animateMouth(analyser);
+        userPresence.classList.add("holmes-speaking");
+      }
+
+      function stopVoiceMotion() {
+        stopMouthAnimation();
+        userPresence.classList.remove("holmes-speaking");
+        if (!playingViolin) {
+          setHolmesState("idle");
+          schedulePacing();
+        }
+      }
+
+      function escapeXml(text) {
+        return text.replace(/[&<>"']/g, function (character) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;" }[character];
+        });
+      }
+
+      function speakWithBrowser(text, run) {
+        if (run !== speechRun || muted || !("speechSynthesis" in window)) return;
+        var utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-GB";
+        utterance.rate = 0.96;
+        utterance.pitch = 0.92;
+        var voices = window.speechSynthesis.getVoices();
+        var preferred = ["Ryan", "Daniel", "Arthur", "Oliver", "George", "Male"];
+        utterance.voice = voices.find(function (voice) {
+          return voice.lang && voice.lang.toLowerCase().indexOf("en-gb") === 0 && preferred.some(function (name) {
+            return voice.name.toLowerCase().indexOf(name.toLowerCase()) >= 0;
+          });
+        }) || voices.find(function (voice) {
+          return voice.lang && voice.lang.toLowerCase().indexOf("en-gb") === 0;
+        }) || null;
+        utterance.onstart = function () { if (run === speechRun) startVoiceMotion(null); };
+        utterance.onend = stopVoiceMotion;
+        utterance.onerror = stopVoiceMotion;
+        window.speechSynthesis.speak(utterance);
+      }
+
+      async function speak(text) {
+        stopSpeech();
+        if (muted) return;
+        var run = speechRun;
+        var ssml = '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-GB"><voice name="' + EDGE_VOICE + '"><prosody rate="-4%" pitch="-3%">' + escapeXml(text) + "</prosody></voice></speak>";
+        try {
+          var response = await fetch(EDGE_TTS_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/ssml+xml",
+              "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3"
+            },
+            body: ssml
+          });
+          if (!response.ok) throw new Error("Edge TTS status " + response.status);
+          var blob = await response.blob();
+          if (run !== speechRun || muted) return;
+          currentAudioUrl = URL.createObjectURL(blob);
+          currentAudio = new Audio(currentAudioUrl);
+          var context = ensureAudioContext();
+          var analyser = null;
+          if (context) {
+            analyser = context.createAnalyser();
+            analyser.fftSize = 256;
+            var source = context.createMediaElementSource(currentAudio);
+            source.connect(analyser);
+            analyser.connect(context.destination);
+          }
+          currentAudio.onended = function () {
+            stopVoiceMotion();
+            if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+            currentAudioUrl = "";
+            currentAudio = null;
+          };
+          await currentAudio.play();
+          startVoiceMotion(analyser);
+        } catch (error) {
+          if (run !== speechRun || muted) return;
+          if (currentAudio) currentAudio.pause();
+          currentAudio = null;
+          if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+          currentAudioUrl = "";
+          console.warn("Edge TTS unavailable; using the browser voice instead.", error);
+          speakWithBrowser(text, run);
+        }
+      }
+
+      function typeReply(text, withSpeech) {
+        window.clearInterval(typingTimer);
+        if (withSpeech === false) stopSpeech();
+        else {
+          moveHolmes("fireplace");
+          setHolmesState(muted ? "idle" : "speaking");
+          speak(text);
+        }
+        reply.textContent = "";
+        reply.classList.add("typing");
+        plaque.scrollTop = 0;
+        var index = 0;
+        typingTimer = window.setInterval(function () {
+          reply.textContent += text.charAt(index);
+          index += 1;
+          plaque.scrollTop = plaque.scrollHeight;
+          if (index >= text.length) {
+            window.clearInterval(typingTimer);
+            reply.classList.remove("typing");
+          }
+        }, 33);
+      }
+
+      function playViolinMusic() {
+        var context = ensureAudioContext();
+        if (!context) return 30500;
+        var notes = [
+          [293.66, 1.25], [440, 1.25], [349.23, 1.25], [293.66, 1.25],
+          [233.08, 1.25], [349.23, 1.25], [440, 1.25], [587.33, 1.5],
+          [523.25, 1.25], [466.16, 1.25], [440, 1.25], [392, 1.25],
+          [349.23, 1.25], [329.63, 1.25], [293.66, 2],
+          [220, 1.25], [293.66, 1.25], [349.23, 1.25], [440, 1.25],
+          [392, 1.25], [349.23, 1.25], [329.63, 1.25], [293.66, 2]
+        ];
+        var filter = context.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = 1900;
+        filter.Q.value = 1.4;
+        filter.connect(context.destination);
+        var time = context.currentTime + 0.15;
+        notes.forEach(function (note, noteIndex) {
+          var oscillator = context.createOscillator();
+          var gain = context.createGain();
+          var vibrato = context.createOscillator();
+          var vibratoDepth = context.createGain();
+          oscillator.type = "sawtooth";
+          oscillator.frequency.value = note[0];
+          vibrato.frequency.value = 5.2;
+          vibratoDepth.gain.value = 4;
+          vibrato.connect(vibratoDepth);
+          vibratoDepth.connect(oscillator.frequency);
+          gain.gain.setValueAtTime(0.0001, time);
+          gain.gain.exponentialRampToValueAtTime(0.12, time + 0.08);
+          gain.gain.setValueAtTime(0.1, time + Math.max(0.1, note[1] - 0.16));
+          gain.gain.exponentialRampToValueAtTime(0.0001, time + note[1]);
+          oscillator.connect(gain);
+          gain.connect(filter);
+          oscillator.start(time);
+          vibrato.start(time);
+          oscillator.stop(time + note[1] + 0.03);
+          vibrato.stop(time + note[1] + 0.03);
+          window.setTimeout(function () {
+            if (!playingViolin) return;
+            cartoonBow.style.transitionDuration = Math.max(.25, note[1] * .82) + "s";
+            cartoonBow.style.transform = noteIndex % 2 ? "translateX(20px) rotate(6deg)" : "translateX(-20px) rotate(-6deg)";
+          }, Math.max(0, (time - context.currentTime) * 1000));
+          time += note[1];
+        });
+        return Math.round((time - context.currentTime) * 1000);
+      }
+
+      function finishViolin() {
+        window.clearTimeout(violinTimer);
+        cartoonBow.style.transform = "";
+        holmesFigure.classList.remove("violin-pose");
+        violinTimer = window.setTimeout(function () {
+          moveHolmes("fireplace");
+          violinTimer = window.setTimeout(function () {
+            playingViolin = false;
+            setHolmesState("idle");
+            message.placeholder = "What brings you to Baker Street?";
+            if (pendingDuringViolin.length) {
+              var queued = pendingDuringViolin.splice(0).join("\n");
+              askHolmes(queued);
+            } else {
+              schedulePacing();
+            }
+          }, 3500);
+        }, 1000);
+      }
+
+      function startViolin() {
+        if (playingViolin) return;
+        playingViolin = true;
+        pendingDuringViolin = [];
+        window.clearTimeout(pacingTimer);
+        stopSpeech();
+        setHolmesState("violin");
+        ensureAudioContext();
+        moveHolmes("window");
+        message.placeholder = "Holmes will answer after the final note…";
+        window.setTimeout(function () {
+          if (playingViolin) {
+            holmesFigure.classList.add("violin-pose");
+            setHolmesState("violin");
+            typeReply("An old air. It steadies the mind.", false);
+            violinTimer = window.setTimeout(finishViolin, playViolinMusic());
+          }
+        }, 3500);
+      }
+
+      function setBusy(busy) {
+        message.disabled = busy;
+        message.placeholder = busy ? "Holmes 正在书写…" : "What brings you to Baker Street?";
+      }
+
+      async function askHolmes(text) {
+        window.clearTimeout(pacingTimer);
+        setHolmesState("thinking");
+        moveHolmes("desk");
+        var thinkingStarted = performance.now();
+        setBusy(true);
+        try {
+          var response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              model: MODEL,
+              stream: false,
+              messages: [
+                { role: "system", content: SYSTEM },
+                { role: "user", content: text }
+              ],
+              options: { num_predict: 500 }
+            })
+          });
+
+          var raw = await response.text();
+          if (!response.ok) {
+            console.error("Ollama request failed:", response.status, raw.slice(0, 200));
+            typeReply("Pray forgive me, my dear fellow — my local faculties appear unavailable. Is Ollama running?");
+            return;
+          }
+
+          var data;
+          try { data = JSON.parse(raw); }
+          catch (error) {
+            console.error("Ollama returned invalid JSON:", response.status, raw.slice(0, 200));
+            typeReply("Pray forgive me, my dear fellow — my thoughts are uncommonly scattered tonight. Do try again.");
+            return;
+          }
+
+          var answer = data && data.message && data.message.content;
+          if (typeof answer !== "string" || !answer.trim()) {
+            console.error("Ollama returned no text:", response.status, raw.slice(0, 200));
+            typeReply("Pray forgive me, my dear fellow — my thoughts are uncommonly scattered tonight. Do try again.");
+            return;
+          }
+          var walkRemaining = 3500 - (performance.now() - thinkingStarted);
+          if (walkRemaining > 0) {
+            await new Promise(function (resolve) { window.setTimeout(resolve, walkRemaining); });
+          }
+          typeReply(answer.trim());
+        } catch (error) {
+          console.error("Ollama request failed: network error", String(error).slice(0, 200));
+          typeReply("Pray forgive me, my dear fellow — my local faculties appear unavailable. Is Ollama running?");
+        } finally {
+          setBusy(false);
+          message.focus();
+        }
+      }
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var text = message.value.trim();
+        if (!text || message.disabled) return;
+        ensureAudioContext();
+        stopSpeech();
+        message.value = "";
+        userPresence.classList.remove("user-typing");
+        if (playingViolin) {
+          pendingDuringViolin.push(text);
+          message.placeholder = "Holmes will answer after the final note…";
+          return;
+        }
+        if (/\bplay\b|\bviolin\b|小提琴|拉一首/i.test(text)) {
+          startViolin();
+          return;
+        }
+        askHolmes(text);
+      });
+
+      message.addEventListener("input", function () {
+        var isTyping = message.value.trim().length > 0;
+        userPresence.classList.toggle("user-typing", isTyping);
+        window.clearTimeout(pacingTimer);
+        if (!isTyping && !playingViolin) schedulePacing();
+      });
+
+      muteToggle.addEventListener("click", function () {
+        muted = !muted;
+        localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+        if (muted) stopSpeech();
+        updateMuteButton();
+      });
+
+      styleToggle.addEventListener("click", function () {
+        cartoonMode = !cartoonMode;
+        localStorage.setItem(STYLE_KEY, cartoonMode ? "cartoon" : "photo");
+        updateStyleButton();
+      });
+
+      updateMuteButton();
+      updateStyleButton();
+      scheduleBlink();
+      scheduleHeadTilt();
+      moveHolmes("fireplace");
+      schedulePacing();
+
+    }());
+  </script>
+</body>
+</html>
